@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:chat_app/widgets/user_image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,6 +23,7 @@ class _AuthScreenState extends State<AuthScreen> {
   var _isLogin = true;
   var _enteredEmail = '';
   var _enteredPassword = '';
+  String _userName = '';
   bool _isAuthenticating = false;
   File? _selectedImage;
 
@@ -51,11 +53,16 @@ class _AuthScreenState extends State<AuthScreen> {
             .child('${userCredentials.user!.uid}.jpg');
         await storageRef.putFile(_selectedImage!);
         final imageUrl = await storageRef.getDownloadURL();
-        print(imageUrl);
+
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredentials.user!.uid)
+            .set({
+          'username': _userName,
+          'email': _enteredEmail,
+          'image_url': imageUrl
+        });
       }
-      setState(() {
-        _isAuthenticating = false;
-      });
     } on FirebaseAuthException catch (error) {
       setState(() {
         _isAuthenticating = false;
@@ -102,6 +109,24 @@ class _AuthScreenState extends State<AuthScreen> {
                             UserImagePicker(
                               onPickImage: (pickedImage) =>
                                   _selectedImage = pickedImage,
+                            ),
+                          if (!_isLogin)
+                            TextFormField(
+                              decoration:
+                                  const InputDecoration(labelText: 'user name'),
+                              keyboardType: TextInputType.name,
+                              enableSuggestions: false,
+                              autocorrect: false,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Please enter a valid user name';
+                                }
+
+                                return null;
+                              },
+                              onSaved: (value) {
+                                _userName = value!;
+                              },
                             ),
                           TextFormField(
                             decoration: const InputDecoration(
